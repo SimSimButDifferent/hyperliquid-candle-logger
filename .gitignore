@@ -1,2 +1,5 @@
 node_modules
-/data
+package-lock.json
+
+/data/BTC-PERP-1m.json
+/data/BTC-PERP-5m.json

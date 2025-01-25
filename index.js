@@ -2,8 +2,23 @@ const { Hyperliquid } = require("hyperliquid");
 const fs = require("fs");
 const path = require("path");
 
-const symbol = "BTC-PERP";
-const interval = "1m";
+// SYMBOLS
+const BTC_PERP = "BTC-PERP";
+const ETH_PERP = "ETH-PERP";
+const SOL_PERP = "SOL-PERP";
+const XRP_PERP = "XRP-PERP";
+const ADA_PERP = "ADA-PERP";
+const DOGE_PERP = "DOGE-PERP";
+
+// INTERVALS
+const oneMinute = "1m";
+const fiveMinutes = "5m";
+const fifteenMinutes = "15m";
+const oneHour = "1h";
+const fourHours = "4h";
+const oneDay = "1d";
+
+// COUNT
 const count = 5000;
 
 async function getHistoricalCandles(symbol, interval, count) {
@@ -157,10 +172,6 @@ async function candleLogger(symbol, interval) {
   // Fill any missing candles before starting the live updates
   candleData = await fillMissingCandles(symbol, interval, candleData);
 
-  // Save the updated data with filled candles
-  const filePath = path.join("./data", `${symbol}-${interval}.json`);
-  fs.writeFileSync(filePath, JSON.stringify(candleData, null, 2));
-
   try {
     await sdk.connect();
     console.log("Connected to WebSocket");
@@ -174,13 +185,28 @@ async function candleLogger(symbol, interval) {
     const saveToFile = () => {
       const filePath = path.join("./data", `${symbol}-${interval}.json`);
       fs.writeFileSync(filePath, JSON.stringify(candleData, null, 2));
+      console.log(
+        `Saved ${
+          candleData.length
+        } candles to file. Latest candle timestamp: ${new Date(
+          candleData[candleData.length - 1].t
+        ).toISOString()}`
+      );
     };
 
     sdk.subscriptions.subscribeToCandle(symbol, interval, (data) => {
       const currentTimestamp = Math.floor(Date.now() / MINUTE_MS) * MINUTE_MS;
 
       if (currentTimestamp > lastCandleTimestamp) {
-        lastProcessedData = data;
+        // Format the new candle data to match historical format
+        lastProcessedData = {
+          ...data,
+          o: data.o.toString(),
+          h: data.h.toString(),
+          l: data.l.toString(),
+          c: data.c.toString(),
+          v: data.v.toString(),
+        };
 
         setTimeout(() => {
           console.log(
@@ -191,15 +217,17 @@ async function candleLogger(symbol, interval) {
 
           // Add new candle to dataset if it doesn't exist
           const candleExists = candleData.some(
-            (candle) => candle.timestamp === lastProcessedData.timestamp
+            (candle) => candle.t === lastProcessedData.t
           );
 
           if (!candleExists) {
             candleData.push(lastProcessedData);
             // Sort candles by timestamp to maintain order
-            candleData.sort((a, b) => a.timestamp - b.timestamp);
+            candleData.sort((a, b) => a.t - b.t);
             saveToFile();
-            console.log("New candle added to dataset");
+            console.log("New candle added to dataset and saved to file");
+          } else {
+            console.log("Candle already exists in dataset, skipping");
           }
 
           lastCandleTimestamp = currentTimestamp;
@@ -214,7 +242,7 @@ async function candleLogger(symbol, interval) {
   }
 }
 
-async function main() {
+async function main(symbol, interval) {
   try {
     let candleData = await loadOrCreateDataFile(symbol, interval);
     candleData = await fillMissingCandles(symbol, interval, candleData);
@@ -228,25 +256,34 @@ async function main() {
     );
 
     candleLogger(symbol, interval);
-    setInterval();
   } catch (error) {
     console.error("Error in main:", error);
   }
 }
 
-// Start the candle logger
-main()
+// Start the candle logger - 1 minute
+main(BTC_PERP, oneMinute)
   .then(() => {
     console.log("Candle logger running");
   })
   .catch((error) => {
     console.error("Error:", error);
   });
-// Start the candle logger
-// candleLogger(symbol, interval)
-//   .then(() => {
-//     console.log("Candle logger running");
-//   })
-//   .catch((error) => {
-//     console.error("Error:", error);
-//   });
+
+// Start the candle logger - 5 minute
+main(BTC_PERP, fiveMinutes)
+  .then(() => {
+    console.log("Candle logger running");
+  })
+  .catch((error) => {
+    console.error("Error:", error);
+  });
+
+// Start the candle logger - 15 minute
+main(BTC_PERP, fifteenMinutes)
+  .then(() => {
+    console.log("Candle logger running");
+  })
+  .catch((error) => {
+    console.error("Error:", error);
+  });
