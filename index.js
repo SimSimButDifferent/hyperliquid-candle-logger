@@ -261,29 +261,47 @@ async function main(symbol, interval) {
   }
 }
 
-// Start the candle logger - 1 minute
-main(BTC_PERP, oneMinute)
-  .then(() => {
-    console.log("Candle logger running");
-  })
-  .catch((error) => {
-    console.error("Error:", error);
-  });
+function scheduleNextRun() {
+  const now = new Date();
+  const nextRun = new Date();
 
-// Start the candle logger - 5 minute
-main(BTC_PERP, fiveMinutes)
-  .then(() => {
-    console.log("Candle logger running");
-  })
-  .catch((error) => {
-    console.error("Error:", error);
-  });
+  // Set to next 11 AM Bangkok time (UTC+7)
+  nextRun.setHours(4, 0, 0, 0); // 4 AM UTC = 11 AM Bangkok
 
-// Start the candle logger - 15 minute
-main(BTC_PERP, fifteenMinutes)
-  .then(() => {
-    console.log("Candle logger running");
-  })
-  .catch((error) => {
-    console.error("Error:", error);
-  });
+  // If it's already past 11 AM Bangkok time, schedule for tomorrow
+  if (now >= nextRun) {
+    nextRun.setDate(nextRun.getDate() + 1);
+  }
+
+  const msUntilNextRun = nextRun - now;
+  return msUntilNextRun;
+}
+
+async function scheduledMain() {
+  try {
+    // Run BTC-PERP for different intervals with 1-minute delays
+    await main(BTC_PERP, oneMinute);
+    await new Promise((resolve) => setTimeout(resolve, 60000)); // 1 minute delay
+
+    await main(BTC_PERP, fiveMinutes);
+    await new Promise((resolve) => setTimeout(resolve, 60000)); // 1 minute delay
+
+    await main(BTC_PERP, fifteenMinutes);
+
+    // Schedule next run 11 am Bangkok time
+    const delay = scheduleNextRun();
+    console.log(
+      `Next run scheduled in ${Math.floor(delay / 1000 / 60)} minutes`
+    );
+    setTimeout(scheduledMain, delay);
+  } catch (error) {
+    console.error("Error in scheduled main:", error);
+    // If there's an error, try again in 5 minutes
+    setTimeout(scheduledMain, 5 * 60 * 1000);
+  }
+}
+
+// Replace the existing main function calls with this single line:
+scheduledMain().catch(console.error);
+
+// Remove or comment out the original three main() calls
